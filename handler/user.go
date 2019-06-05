@@ -38,7 +38,7 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 	encPasswd := util.Sha1([]byte(passwd + pwdSalt))
 	suc := dblayer.UserSignup(username, encPasswd)
 	if suc {
-		w.Write([]byte("USCCESS"))
+		w.Write([]byte("SUCCESS"))
 	} else {
 		w.Write([]byte("FAILED"))
 	}
@@ -86,6 +86,26 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 			Username: username,
 			Token:    token,
 		},
+	}
+	w.Write(resp.JSONBytes())
+}
+
+func UserInfoHandler(w http.ResponseWriter, r *http.Request) {
+	// parse form
+	r.ParseForm()
+	username := r.Form.Get("username")
+
+	// check user info
+	user, err := dblayer.GetUserInfo(username)
+	if err != nil {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	resp := util.RespMsg{
+		Code: 0,
+		Msg:  "OK",
+		Data: user,
 	}
 	w.Write(resp.JSONBytes())
 }

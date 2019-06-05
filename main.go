@@ -1,8 +1,8 @@
 package main
 
 import (
-	"golang-filestore/handler"
 	"fmt"
+	"golang-filestore/handler"
 	"net/http"
 )
 
@@ -16,6 +16,11 @@ func main() {
 	http.HandleFunc("/file/download", handler.DownloadHandler)
 	http.HandleFunc("/file/update", handler.FileMetaUpdateHandler)
 	http.HandleFunc("/file/delete", handler.FileDeleteHandler)
+
+	//user api
+	http.HandleFunc("/user/signup", handler.SignupHandler)
+	http.HandleFunc("/user/signin", handler.SignInHandler)
+	http.HandleFunc("/user/info", handler.HTTPIntercepter(handler.UserInfoHandler))
 
 	fmt.Println("上传服务正在启动，监听端口：8080...")
 	err := http.ListenAndServe(":8080", nil)

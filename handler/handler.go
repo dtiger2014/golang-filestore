@@ -50,9 +50,6 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 
 		newFile.Seek(0, 0)
 		fileMeta.FileSha1 = util.FileSha1(newFile)
-		// meta.UpdateFileMeta(fileMeta)
-
-		// http.Redirect(w, r, "/file/upload/suc", http.StatusFound)
 
 		// TODO: 处理异常情况， 比如跳转到一个上传失败页面
 		_ = meta.UpdateFileMetaDB(fileMeta)
@@ -62,7 +59,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		suc := dblayer.OnUserFileUploadFinished(username, fileMeta.FileSha1,
 			fileMeta.FileName, fileMeta.FileSize)
 		if suc {
-			http.Redirect(w, r, "/static/view/home.html", http.StatausFound)
+			http.Redirect(w, r, "/static/view/home.html", http.StatusFound)
 		} else {
 			w.Write([]byte("Upload Failed"))
 		}
@@ -77,12 +74,17 @@ func GetFileMetaHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
 	filehash := r.Form["filehash"][0]
-	fMeta := meta.GetFileMeta(filehash)
+	fMeta, err := meta.GetFileMetaDB(filehash)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	data, err := json.Marshal(fMeta)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
+
 	w.Write(data)
 }
 
@@ -90,8 +92,14 @@ func FileQueryHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
 	limitCnt, _ := strconv.Atoi(r.Form.Get("limit"))
-	fileMetas := meta.GetLastFileMetas(limitCnt)
-	data, err := json.Marshal(fileMetas)
+	username := r.Form.Get("username")
+	userFiles, err := dblayer.QueryUserFileMetas(username, limitCnt)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	data, err := json.Marshal(userFiles)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -102,7 +110,14 @@ func FileQueryHandler(w http.ResponseWriter, r *http.Request) {
 func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	fsha1 := r.Form.Get("filehash")
-	fm := meta.GetFileMeta(fsha1)
+	username := r.Form.Get("username")
+
+	fm, _ := meta.GetFileMetaDB(fsha1)
+	userFile, err := dblayer.QueryUserFileMeta(username, fsha1)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	f, err := os.Open(fm.Location)
 	if err != nil {
@@ -118,7 +133,7 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/octect-stream")
-	w.Header().Set("content-disposition", "attachment; filename=\""+fm.FileName+"\"")
+	w.Header().Set("content-disposition", "attachment; filename=\""+userFile.FileName+"\"")
 	w.Write(data)
 }
 
@@ -127,40 +142,54 @@ func FileMetaUpdateHandler(w http.ResponseWriter, r *http.Request) {
 
 	opType := r.Form.Get("op")
 	fileSha1 := r.Form.Get("filehash")
+	username := r.Form.Get("username")
 	newFileName := r.Form.Get("filename")
 
-	if opType != "0" {
+	if opType != "0" || len(newFileName) < 1 {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
-
 	if r.Method != "POST" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	// update tbl_userfile.filename，tbl_file name don't update.
+	_ = dblayer.RenameFileName(username, fileSha1, newFileName)
 
-	curFileMeta := meta.GetFileMeta(fileSha1)
-	curFileMeta.FileName = newFileName
-	meta.UpdateFileMeta(curFileMeta)
-
-	data, err := json.Marshal(curFileMeta)
+	userFile, err := dblayer.QueryUserFileMeta(username, fileSha1)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
+	data, err := json.Marshal(userFile)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(data)
+
 }
 
 func FileDeleteHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
+
+	username := r.Form.Get("username")
 	fileSha1 := r.Form.Get("filehash")
 
-	fMeta := meta.GetFileMeta(fileSha1)
-	os.Remove(fMeta.Location)
+	// delete local file
+	fm, err := meta.GetFileMetaDB(fileSha1)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	os.Remove(fm.Location)
 
-	meta.RemoveFileMeta(fileSha1)
+	suc := dblayer.DeleteUserFile(username, fileSha1)
+	if !suc {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	w.WriteHeader(http.StatusOK)
 }

@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	dblayer "golang-filestore/db"
 	"golang-filestore/meta"
 	"golang-filestore/util"
 	"io"
@@ -49,9 +50,22 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 
 		newFile.Seek(0, 0)
 		fileMeta.FileSha1 = util.FileSha1(newFile)
-		meta.UpdateFileMeta(fileMeta)
+		// meta.UpdateFileMeta(fileMeta)
 
-		http.Redirect(w, r, "/file/upload/suc", http.StatusFound)
+		// http.Redirect(w, r, "/file/upload/suc", http.StatusFound)
+
+		// TODO: 处理异常情况， 比如跳转到一个上传失败页面
+		_ = meta.UpdateFileMetaDB(fileMeta)
+
+		r.ParseForm()
+		username := r.Form.Get("username")
+		suc := dblayer.OnUserFileUploadFinished(username, fileMeta.FileSha1,
+			fileMeta.FileName, fileMeta.FileSize)
+		if suc {
+			http.Redirect(w, r, "/static/view/home.html", http.StatausFound)
+		} else {
+			w.Write([]byte("Upload Failed"))
+		}
 	}
 }
 

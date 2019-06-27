@@ -6,6 +6,7 @@ import (
 	mydb "golang-filestore/db/mysql"
 )
 
+// TableFile : 文件表对应的一些字段
 type TableFile struct {
 	FileHash string
 	FileName sql.NullString
@@ -13,6 +14,7 @@ type TableFile struct {
 	FileAddr sql.NullString
 }
 
+// OnFileUploadFinished : 文件上传完成，保存meta
 func OnFileUploadFinished(filehash string, filename string,
 	filesize int64, fileaddr string) bool {
 	stmt, err := mydb.DBConn().Prepare(
@@ -39,6 +41,7 @@ func OnFileUploadFinished(filehash string, filename string,
 	return false
 }
 
+// GetFileMeta ：从mysql获取文件元信息
 func GetFileMeta(filehash string) (*TableFile, error) {
 	stmt, err := mydb.DBConn().Prepare(
 		"select file_sha1,file_addr,file_name,file_size from tbl_file " +
@@ -60,9 +63,11 @@ func GetFileMeta(filehash string) (*TableFile, error) {
 	return &tfile, nil
 }
 
+// IsFileUploaded : 文件是否已经上传过
 func IsFileUploaded(filehash string) bool {
 	stmt, err := mydb.DBConn().Prepare("Select 1 from tbl_file where file_sha1=? and status=1 limit 1")
 
+	// TODO: 测试中文输入，完成查询逻辑
 	rows, err := stmt.Query(filehash)
 	if err != nil {
 		return false
@@ -73,6 +78,7 @@ func IsFileUploaded(filehash string) bool {
 	return true
 }
 
+// GetFileMetaList ： 从mysql批量获取文件元信息
 func GetFileMetaList(limit int) ([]TableFile, error) {
 	stmt, err := mydb.DBConn().Prepare(
 		"select file_sha1, file_addr, file_name, file_size from tbl_file " +
@@ -106,6 +112,7 @@ func GetFileMetaList(limit int) ([]TableFile, error) {
 	return tfiles, nil
 }
 
+// OnFileRemoved：文件删除（制作删除标记，即改为status=2)
 func OnFileRemoved(filehash string) bool {
 	stmt, err := mydb.DBConn().Prepare(
 		"update tbl_file set status=2 where file_sha1=? and status=1 limit 1")

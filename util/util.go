@@ -43,7 +43,7 @@ func MD5(data []byte) string {
 	return hex.EncodeToString(_md5.Sum([]byte("")))
 }
 
-func fileMD5(file *os.File) string {
+func FileMD5(file *os.File) string {
 	_md5 := md5.New()
 	io.Copy(_md5, file)
 	return hex.EncodeToString(_md5.Sum(nil))

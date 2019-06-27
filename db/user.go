@@ -5,6 +5,7 @@ import (
 	mydb "golang-filestore/db/mysql"
 )
 
+// User : 用户表modal
 type User struct {
 	Username     string
 	Email        string
@@ -14,6 +15,7 @@ type User struct {
 	Status       int
 }
 
+// UserSignup : 通过用户名及密码完成user表的注册操作
 func UserSignup(username string, passwd string) bool {
 	stmt, err := mydb.DBConn().Prepare(
 		"insert ignore into tbl_user (`user_name`,`user_pwd`) values(?,?)")
@@ -33,6 +35,8 @@ func UserSignup(username string, passwd string) bool {
 	}
 	return false
 }
+
+// UserSignin ：判断密码是否一致
 func UserSignin(username string, encpwd string) bool {
 	stmt, err := mydb.DBConn().Prepare(
 		"select * from tbl_user where user_name=? limit 1")
@@ -59,6 +63,7 @@ func UserSignin(username string, encpwd string) bool {
 	return false
 }
 
+// UpdateToken ：刷新用户登录的token
 func UpdateToken(username string, token string) bool {
 	stmt, err := mydb.DBConn().Prepare(
 		"replace into tbl_user_token (`user_name`,`user_token`) values(?,?)")
@@ -76,6 +81,7 @@ func UpdateToken(username string, token string) bool {
 	return true
 }
 
+// GetUserInfo ：查询用户信息
 func GetUserInfo(username string) (User, error) {
 	user := User{}
 

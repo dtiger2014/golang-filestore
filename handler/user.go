@@ -2,10 +2,11 @@ package handler
 
 import (
 	"fmt"
-	dblayer "golang-filestore/db"
-	"golang-filestore/util"
 	"net/http"
 	"time"
+
+	dblayer "golang-filestore/db"
+	"golang-filestore/util"
 )
 
 const (
@@ -44,6 +45,7 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// SignInHandler : 登录接口
 func SignInHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		// data, err := ioutil.ReadFile("./static/view/signin.html")
@@ -61,12 +63,14 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 
 	encPasswd := util.Sha1([]byte(password + pwdSalt))
 
+	// 1. 娇艳用户名及密码
 	pwdChecked := dblayer.UserSignin(username, encPasswd)
 	if !pwdChecked {
 		w.Write([]byte("FAILED"))
 		return
 	}
 
+	// 2. 生成访问token
 	token := GenToken(username)
 	upRes := dblayer.UpdateToken(username, token)
 	if !upRes {
@@ -74,6 +78,7 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 3. 登录成功后重定向到首页
 	resp := util.RespMsg{
 		Code: 0,
 		Msg:  "OK",
@@ -90,6 +95,7 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(resp.JSONBytes())
 }
 
+// UserInfoHandler ：查询用户信息
 func UserInfoHandler(w http.ResponseWriter, r *http.Request) {
 	// parse form
 	r.ParseForm()

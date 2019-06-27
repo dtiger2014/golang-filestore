@@ -99,6 +99,7 @@ func DeleteUserFile(username, filehash string) bool {
 	return true
 }
 
+// QueryUserFileMeta ：获取用户单个文件信息
 func QueryUserFileMeta(username, filehash string) (*UserFile, error) {
 	stmt, err := mydb.DBConn().Prepare(
 		"select file_sha1,file_name,file_size,upload_at," +
